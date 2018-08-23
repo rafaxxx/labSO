@@ -4,6 +4,9 @@
 #include <vector>
 #include <cstdio>
 #include <sstream>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 using namespace xeu_utils;
 using namespace std;
@@ -87,15 +90,35 @@ void commands_explanation(const vector<Command>& commands) {
   }
 }
 
-int main() {
+int main(int argc, char *argv[], char *envp[]) {
   // Waits for the user to input a command and parses it. Commands separated
   // by pipe, "|", generate multiple commands. For example, try to input
   //   ps aux | grep xeu
   // commands.size() would be 2: (ps aux) and (grep xeu)
   // If the user just presses ENTER without any command, commands.size() is 0
-  const vector<Command> commands = StreamParser().parse().commands();
+  // const vector<Command> commands = StreamParser().parse().commands();
+  //
+  // commands_explanation(commands);
 
-  commands_explanation(commands);
+  while(true) {
+    vector<Command> commands;
+    ParsingState p;
+    Command c;
+
+    cout << "$ - " << getpid() << " ";
+    p = StreamParser().parse(); // AQUI LER
+    commands = p.commands();
+
+    if (commands.size() != 0 && fork() == 0){
+      for(int i=0; i< commands.size(); i++){
+        c = commands[i];
+        execvp(c.filename(), c.argv());
+        cout << endl;
+      }
+    } else {
+
+    }
+  }
 
   return 0;
 }
