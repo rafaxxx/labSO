@@ -1,3 +1,4 @@
+/*
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -8,12 +9,16 @@ int main(int argc, char *argv[], char *envp[]){
   int pipefd[2];
   pipe(pipefd);
 
-  dup2(0, pipefd[0]);
   if(fork() == 0) {
-    dup2(1, pipefd[1]);
-    execvp("/bin/ps", argv);
+    dup2(pipefd[1], 1);
+    close(pipefd[0]);
+    execvp("/bin/ls", argv);
   } else {
+    dup2(pipefd[0], 0);
+    close(pipefd[1]);
     execvp("/usr/bin/wc", argv);
+    //execvp("/bin/ls", argv);
     //wait(0);
   }
 }
+*/

@@ -111,11 +111,32 @@ int main(int argc, char *argv[], char *envp[]) {
     p = StreamParser().parse(); // AQUI LER
     commands = p.commands();
 
-    if (commands.size() != 0 && fork() == 0){
-      for(int i=0; i< commands.size(); i++){
-        c = commands[i];
+    if (commands.size() == 1 && fork() == 0){
+        c = commands[0];
         execvp(c.filename(), c.argv());
         cout << endl;
+    }
+
+    else if (commands.size() > 1 && fork() == 0){
+      //for(int i=1; i< commands.size(); i++){
+      Command c1 = commands[0];
+      Command c2 = commands[1];
+
+        int pipefd[2];
+        pipe(pipefd);
+
+        if(fork() == 0) {
+          dup2(pipefd[1], 1);
+          close(pipefd[0]);
+          execvp(c1.filename(), c1.argv());
+
+        } else {
+          dup2(pipefd[0], 0);
+          close(pipefd[1]);
+          execvp(c2.filename(), c2.argv());
+        //c = commands[i];
+        //execvp(c.filename(), c.argv());
+        //cout << endl;
       }
     } else {
       wait(0);
