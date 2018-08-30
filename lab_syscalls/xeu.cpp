@@ -92,7 +92,47 @@ void commands_explanation(const vector<Command>& commands) {
   }
 }
 
+int pipeline(int pipefd[2], vector<Command> commands, int i){
+  if(fork() == 0){
+    Command c = commands[i];
+    if (i == 0){
+      dup2(pipefd[1],1);
+      close(pipefd[0]);
+      execvp(c.filename(), c.argv());
+    } else{
+      int pipeAux[2];
+      pipe(pipeAux);
+      pipeline(pipeAux,commands, i - 1);
+      dup2(pipeAux[0],0);
+      dup2(pipefd[1],1);
+      close(pipefd[0]);
+      close(pipeAux[1]);
+      execvp(c.filename(), c.argv());
+    }
+  }
+  else{
+    wait(0);
+  }
+  return 0;
+}
+
 int main(int argc, char *argv[], char *envp[]) {
+  while(true) {
+    vector<Command> commands;
+    ParsingState p;
+
+    cout << "$ - " << getpid() << " ";
+    p = StreamParser().parse(); // AQUI LER
+    commands = p.commands();
+    int fd[2];
+    pipe(fd);
+    fd[1] = 1;
+    pipeline(fd, commands, commands.size() - 1);
+  }
+
+  return 0;
+}
+/*int main(int argc, char *argv[], char *envp[]) {
   // Waits for the user to input a command and parses it. Commands separated
   // by pipe, "|", generate multiple commands. For example, try to input
   //   ps aux | grep xeu
@@ -144,4 +184,4 @@ int main(int argc, char *argv[], char *envp[]) {
   }
 
   return 0;
-}
+}*/
