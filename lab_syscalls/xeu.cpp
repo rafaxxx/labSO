@@ -92,27 +92,33 @@ void commands_explanation(const vector<Command>& commands) {
   }
 }
 
+#define READ_END 0
+#define WRITE_END 1
+
 int pipeline(int pipefd[2], vector<Command> commands, int i){
-  if(fork() == 0){
-    Command c = commands[i];
+  Command c = commands[i];
+  int pipeAux[2];
+  pipe(pipeAux);
+  int child = fork();
+  if(child == 0){
     if (i == 0){
-      dup2(pipefd[1],1);
-      close(pipefd[0]);
+      //close(pipefd[READ_END]);
+      dup2(pipefd[WRITE_END],STDOUT_FILENO);
       execvp(c.filename(), c.argv());
     } else{
-      int pipeAux[2];
-      pipe(pipeAux);
       pipeline(pipeAux,commands, i - 1);
-      dup2(pipeAux[0],0);
-      dup2(pipefd[1],1);
-      close(pipefd[0]);
-      close(pipeAux[1]);
+      dup2(pipeAux[READ_END],STDIN_FILENO);
+      dup2(pipefd[WRITE_END],STDOUT_FILENO);
+      //close(pipefd[READ_END]);
+      close(pipeAux[WRITE_END]);
       execvp(c.filename(), c.argv());
     }
   }
-  else{
-    wait(0);
-  }
+
+  close(pipeAux[READ_END]);
+  close(pipeAux[WRITE_END]);
+  int status;
+  waitpid(child, &status, 0);
   return 0;
 }
 
@@ -126,62 +132,8 @@ int main(int argc, char *argv[], char *envp[]) {
     commands = p.commands();
     int fd[2];
     pipe(fd);
-    fd[1] = 1;
+    fd[WRITE_END] = STDOUT_FILENO;
     pipeline(fd, commands, commands.size() - 1);
   }
-
   return 0;
 }
-/*int main(int argc, char *argv[], char *envp[]) {
-  // Waits for the user to input a command and parses it. Commands separated
-  // by pipe, "|", generate multiple commands. For example, try to input
-  //   ps aux | grep xeu
-  // commands.size() would be 2: (ps aux) and (grep xeu)
-  // If the user just presses ENTER without any command, commands.size() is 0
-  // const vector<Command> commands = StreamParser().parse().commands();
-  //
-  // commands_explanation(commands);
-
-  while(true) {
-    vector<Command> commands;
-    ParsingState p;
-    Command c;
-
-    cout << "$ - " << getpid() << " ";
-    p = StreamParser().parse(); // AQUI LER
-    commands = p.commands();
-
-    if (commands.size() == 1 && fork() == 0){
-        c = commands[0];
-        execvp(c.filename(), c.argv());
-        cout << endl;
-    }
-
-    else if (commands.size() > 1 && fork() == 0){
-      //for(int i=1; i< commands.size(); i++){
-      Command c1 = commands[0];
-      Command c2 = commands[1];
-
-        int pipefd[2];
-        pipe(pipefd);
-
-        if(fork() == 0) {
-          dup2(pipefd[1], 1);
-          close(pipefd[0]);
-          execvp(c1.filename(), c1.argv());
-
-        } else {
-          dup2(pipefd[0], 0);
-          close(pipefd[1]);
-          execvp(c2.filename(), c2.argv());
-        //c = commands[i];
-        //execvp(c.filename(), c.argv());
-        //cout << endl;
-      }
-    } else {
-      wait(0);
-    }
-  }
-
-  return 0;
-}*/
