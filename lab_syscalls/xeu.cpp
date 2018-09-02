@@ -16,7 +16,6 @@ using namespace std;
 
 #define READ_END 0
 #define WRITE_END 1
-#define BUFFER_PIPE 1048576
 
 // This function is just to help you learn the useful methods from Command
 void io_explanation(const Command& command) {
@@ -97,41 +96,30 @@ void commands_explanation(const vector<Command>& commands) {
   }
 }
 
-int setBufferPipe(int fd[2]){
-  fcntl(fd[0], F_SETPIPE_SZ, BUFFER_PIPE);
-  fcntl(fd[1], F_SETPIPE_SZ, BUFFER_PIPE);
-  return 0;
-}
-
 int * createPipe(){
   int *fd = new int[2];
   pipe(fd);
-  setBufferPipe(fd);
   return fd;
 }
 
-int pipeline(int pipefd[2], vector<Command> commands, int i){
+int pipeline(vector<Command> commands, int fd[2], int i){
   if (i == commands.size() - 1)
-    pipefd[WRITE_END] = STDOUT_FILENO; // Last Pipe prints on STDOUT
-  Command c = commands[i];
-  int *pipeAux = createPipe();
-  if(fork() == 0){
-    if (i == 0){
-      dup2(pipefd[WRITE_END],STDOUT_FILENO);
-      execvp(c.filename(), c.argv());
-    } else{
-      pipeline(pipeAux,commands, i - 1);
+    fd[WRITE_END] = STDOUT_FILENO;
+
+  if(i == 0){
+    dup2(fd[WRITE_END],STDOUT_FILENO);
+    execvp(commands[i].filename(), commands[i].argv());
+  }else{
+    int *pipeAux = createPipe();
+    if(fork() == 0){
+      pipeline(commands, pipeAux, i - 1);
+    }else{
       dup2(pipeAux[READ_END],STDIN_FILENO);
-      dup2(pipefd[WRITE_END],STDOUT_FILENO);
+      dup2(fd[WRITE_END],STDOUT_FILENO);
       close(pipeAux[WRITE_END]);
-      execvp(c.filename(), c.argv());
+      execvp(commands[i].filename(), commands[i].argv());
     }
   }
-  close(pipeAux[READ_END]);
-  close(pipeAux[WRITE_END]);
-  int status;
-  wait(0);
-  return 0;
 }
 
 int main(int argc, char *argv[], char *envp[]) {
@@ -141,8 +129,15 @@ int main(int argc, char *argv[], char *envp[]) {
     cout << "\033[1;32m[xeu - pid:" << getpid() << "]$\033[0m ";
     p = StreamParser().parse(); // AQUI LER
     commands = p.commands();
-    if (commands.size() != 0)
-      pipeline(createPipe(), commands, commands.size() - 1);
+
+    if(commands.size() != 0){
+      if(fork() == 0){
+        pipeline(commands, createPipe(), commands.size() - 1);
+      }else{
+        wait(0);
+      }
+    }
+
   }
   return 0;
 }
