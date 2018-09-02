@@ -9,9 +9,14 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 using namespace xeu_utils;
 using namespace std;
+
+#define READ_END 0
+#define WRITE_END 1
+#define BUFFER_PIPE 1048576
 
 // This function is just to help you learn the useful methods from Command
 void io_explanation(const Command& command) {
@@ -92,33 +97,40 @@ void commands_explanation(const vector<Command>& commands) {
   }
 }
 
-#define READ_END 0
-#define WRITE_END 1
+int setBufferPipe(int fd[2]){
+  fcntl(fd[0], F_SETPIPE_SZ, BUFFER_PIPE);
+  fcntl(fd[1], F_SETPIPE_SZ, BUFFER_PIPE);
+  return 0;
+}
+
+int * createPipe(){
+  int *fd = new int[2];
+  pipe(fd);
+  setBufferPipe(fd);
+  return fd;
+}
 
 int pipeline(int pipefd[2], vector<Command> commands, int i){
+  if (i == commands.size() - 1)
+    pipefd[1] = pipefd[WRITE_END] = STDOUT_FILENO; // Last Pipe prints on STDOUT
   Command c = commands[i];
-  int pipeAux[2];
-  pipe(pipeAux);
-  int child = fork();
-  if(child == 0){
+  int *pipeAux = createPipe();
+  if(fork() == 0){
     if (i == 0){
-      //close(pipefd[READ_END]);
       dup2(pipefd[WRITE_END],STDOUT_FILENO);
       execvp(c.filename(), c.argv());
     } else{
       pipeline(pipeAux,commands, i - 1);
       dup2(pipeAux[READ_END],STDIN_FILENO);
       dup2(pipefd[WRITE_END],STDOUT_FILENO);
-      //close(pipefd[READ_END]);
       close(pipeAux[WRITE_END]);
       execvp(c.filename(), c.argv());
     }
   }
-
   close(pipeAux[READ_END]);
   close(pipeAux[WRITE_END]);
   int status;
-  waitpid(child, &status, 0);
+  wait(0);
   return 0;
 }
 
@@ -126,14 +138,11 @@ int main(int argc, char *argv[], char *envp[]) {
   while(true) {
     vector<Command> commands;
     ParsingState p;
-
-    cout << "$ - " << getpid() << " ";
+    cout << "\033[1;32m[xeu - pid:" << getpid() << "]$\033[0m ";
     p = StreamParser().parse(); // AQUI LER
     commands = p.commands();
-    int fd[2];
-    pipe(fd);
-    fd[WRITE_END] = STDOUT_FILENO;
-    pipeline(fd, commands, commands.size() - 1);
+    if (commands.size() != 0)
+      pipeline(createPipe(), commands, commands.size() - 1);
   }
   return 0;
 }
