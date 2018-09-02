@@ -112,7 +112,7 @@ int * createPipe(){
 
 int pipeline(int pipefd[2], vector<Command> commands, int i){
   if (i == commands.size() - 1)
-    pipefd[1] = pipefd[WRITE_END] = STDOUT_FILENO; // Last Pipe prints on STDOUT
+    pipefd[WRITE_END] = STDOUT_FILENO; // Last Pipe prints on STDOUT
   Command c = commands[i];
   int *pipeAux = createPipe();
   if(fork() == 0){
