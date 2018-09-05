@@ -102,13 +102,21 @@ int * createPipe(){
   return fd;
 }
 
+int execCommand (Command c) {
+  if(execvp(c.filename(), c.argv()) == -1) {
+    printf("Esse comando nao existe\n");
+  }
+  return 0;
+}
+
 int pipeline(vector<Command> commands, int fd[2], int i){
   if (i == commands.size() - 1)
     fd[WRITE_END] = STDOUT_FILENO;
 
   if(i == 0){
     dup2(fd[WRITE_END],STDOUT_FILENO);
-    execvp(commands[i].filename(), commands[i].argv());
+    //execvp(commands[i].filename(), commands[i].argv());
+    execCommand(commands[i]);
   }else{
     int *pipeAux = createPipe();
     if(fork() == 0){
@@ -117,7 +125,8 @@ int pipeline(vector<Command> commands, int fd[2], int i){
       dup2(pipeAux[READ_END],STDIN_FILENO);
       dup2(fd[WRITE_END],STDOUT_FILENO);
       close(pipeAux[WRITE_END]);
-      execvp(commands[i].filename(), commands[i].argv());
+      //execvp(commands[i].filename(), commands[i].argv());
+      execCommand(commands[i]);
     }
   }
 }
