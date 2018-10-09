@@ -102,10 +102,11 @@ int * createPipe(){
   return fd;
 }
 
-void execCommand (Command c) {
-  if (execvp(c.filename(), c.argv()) == -1) {
+int execCommand (Command c) {
+  if(execvp(c.filename(), c.argv()) == -1) {
     printf("Esse comando nao existe\n");
   }
+  return 0;
 }
 
 int pipeline(vector<Command> commands, int fd[2], int i){
