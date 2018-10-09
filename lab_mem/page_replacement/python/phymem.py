@@ -16,6 +16,8 @@ class PhysicalMemory:
     self.algorithm = algorithm
     if(self.algorithm == "fifo"):
         self.policy = Fifo()
+    elif(self.algorithm == "second-chance"):
+        self.policy = Second_chance()
 
   def put(self, frameId):
     """Allocates this frameId for some page"""
@@ -38,18 +40,51 @@ class PhysicalMemory:
     """A frameId was accessed for read/write (if write, isWrite=True)"""
     self.policy.access(frameId, isWrite)
 
+class FrameMem:
+    def __init__(self, frameId):
+        self.id = frameId
+        self.bit_R = False #Referenciado
+        self.bit_M = False #Modificado
+
+
 class Fifo:
     def __init__(self):
         self.queue = []
 
     def put(self, frameId):
-        self.queue.insert(0,frameId)
+        new_frame = FrameMem(frameId)
+        self.queue.insert(0, new_frame)
 
     def evict(self):
-        return self.queue.pop()
+        my_frame = self.queue.pop()
+        return my_frame.id
 
     def clock(self):
         pass
 
     def access(self, frameId, isWrite):
         pass
+
+class Second_chance:
+    def __init__(self):
+        self.queue = []
+
+    def put(self, frameId):
+        new_frame = FrameMem(frameId)
+        self.queue.insert(0,new_frame)
+
+    def evict(self):
+        my_frame = self.queue.pop()
+        if (my_frame.bit_R):
+            my_frame.bit_R = False
+            self.queue.insert(0,my_frame)
+            return evict()
+        return my_frame.id
+
+    def clock(self):
+        pass
+
+    def access(self, frameId, isWrite):
+        for frame in self.queue:
+            if (frame.id == frameId):
+                frame.R = True
