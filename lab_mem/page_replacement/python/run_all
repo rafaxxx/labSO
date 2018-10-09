@@ -7,7 +7,7 @@ clock=200
 for trace in trace.1 trace.2; do
   #for alg in fifo nru aging second-chance
   for alg in fifo; do
-    echo "=== ALGORITMO FIFO ==="
+    echo "=== ALGORITMO $alg ==="
     for nframes in 4 8 16 32; do
 	    mkdir -p output/$trace
       echo "Simulacao para npages = $npages nframes = $nframes clock = $clock"
