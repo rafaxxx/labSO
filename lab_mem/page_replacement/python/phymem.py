@@ -122,3 +122,45 @@ class Rnu:
                 frame.bit_R = True
                 if(isWrite):
                     frame.bit_M = True
+
+class Aging:
+    def __init__(self):
+        self.array = []
+        self.lower_frame_id = -1
+        self.lower_frame_index = -1
+        self.lower_count = 9999
+
+    def put(self, frameId):
+        new_frame = FrameMem(frameId)
+        self.array.append(new_frame)
+
+    def evict(self):
+        menor = 999
+        for frame in self.array:
+            if (frame.count < menor):
+                my_frame = frame
+                menor = frame.count
+
+        self.array.remove(my_frame)
+        return my_frame.id
+
+    def clock(self):
+        for index in range(len(self.array)):
+            my_frame = self.array[index]
+            binary_num = bin(my_frame.count).split('b')[1]
+            binary_num = binary_num + '00000000'
+            if(my_frame.bit_R):
+                binary_num = '0b1' + binary_num[0:8]
+            else:
+                binary_num = '0b0' + binary_num[0:8]
+
+            my_frame.count = int(binary_num,2)
+            if(my_frame.count < self.lower_count):
+                self.lower_frame_id = my_frame.id
+                self.lower_frame_index = index
+                self.lower_count = my_frame.count
+
+    def access(self, frameId, isWrite):
+        for frame in self.array:
+            if (frame.id == frameId):
+                frame.bit_R = True
