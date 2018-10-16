@@ -18,6 +18,8 @@ class PhysicalMemory:
         self.policy = Fifo()
     elif(self.algorithm == "second-chance"):
         self.policy = Second_chance()
+    elif(self.algorithm == "nru"):
+        self.policy = Rnu()
 
   def put(self, frameId):
     """Allocates this frameId for some page"""
@@ -88,3 +90,35 @@ class Second_chance:
         for frame in self.queue:
             if (frame.id == frameId):
                 frame.bit_R = True
+class Rnu:
+    def __init__(self):
+        self.queue = []
+
+    def put(self, frameId):
+        new_frame = FrameMem(frameId)
+        self.queue.insert(0,new_frame)
+
+    def evict(self):
+
+        my_frame = self.queue.pop()
+        if (my_frame.bit_R):
+            my_frame.bit_R = False
+            self.queue.insert(0,my_frame)
+            return self.evict()
+        else:
+            if(my_frame.bit_M):
+                my_frame.bit_M = False
+                self.queue.insert(0,my_frame)
+                return self.evict()
+            else:
+                return my_frame.id
+
+    def clock(self):
+        pass
+
+    def access(self, frameId, isWrite):
+        for frame in self.queue:
+            if (frame.id == frameId):
+                frame.bit_R = True
+                if(isWrite):
+                    frame.bit_M = True
