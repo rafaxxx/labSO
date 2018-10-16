@@ -78,7 +78,7 @@ class Second_chance:
         if (my_frame.bit_R):
             my_frame.bit_R = False
             self.queue.insert(0,my_frame)
-            return evict()
+            return self.evict()
         return my_frame.id
 
     def clock(self):
@@ -87,4 +87,4 @@ class Second_chance:
     def access(self, frameId, isWrite):
         for frame in self.queue:
             if (frame.id == frameId):
-                frame.R = True
+                frame.bit_R = True
