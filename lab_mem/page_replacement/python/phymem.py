@@ -47,6 +47,7 @@ class FrameMem:
         self.id = frameId
         self.bit_R = False #Referenciado
         self.bit_M = False #Modificado
+        self.count = [0] * 6
 
 
 class Fifo:
@@ -66,7 +67,6 @@ class Fifo:
 
     def access(self, frameId, isWrite):
         pass
-
 class Second_chance:
     def __init__(self):
         self.queue = []
@@ -122,43 +122,40 @@ class Rnu:
                 frame.bit_R = True
                 if(isWrite):
                     frame.bit_M = True
-
 class Aging:
     def __init__(self):
         self.array = []
-        self.lower_frame_id = -1
-        self.lower_frame_index = -1
-        self.lower_count = 9999
+
+    def shift(self, arr,value):
+        arr.pop()
+        arr.insert(0,value)
+
+    def to_number(self, arr):
+        binary = ''
+        for i in arr:
+            binary += str(i)
+        binary = '0b' + binary
+        return int(binary,2)
 
     def put(self, frameId):
         new_frame = FrameMem(frameId)
         self.array.append(new_frame)
 
     def evict(self):
-        menor = 999
-        for frame in self.array:
-            if (frame.count < menor):
-                my_frame = frame
-                menor = frame.count
-
-        self.array.remove(my_frame)
-        return my_frame.id
+        lower = self.array[0]
+        for frame in self.array[1:]:
+            if (self.to_number(frame.count) < self.to_number(lower.count)):
+                lower = frame
+        self.array.remove(lower)
+        return lower.id
 
     def clock(self):
-        for index in range(len(self.array)):
-            my_frame = self.array[index]
-            binary_num = bin(my_frame.count).split('b')[1]
-            binary_num = binary_num + '00000000'
-            if(my_frame.bit_R):
-                binary_num = '0b1' + binary_num[0:8]
+        for frame in self.array:
+            if(frame.bit_R):
+                self.shift(frame.count,1)
+                frame.bit_R = False
             else:
-                binary_num = '0b0' + binary_num[0:8]
-
-            my_frame.count = int(binary_num,2)
-            if(my_frame.count < self.lower_count):
-                self.lower_frame_id = my_frame.id
-                self.lower_frame_index = index
-                self.lower_count = my_frame.count
+                self.shift(frame.count,0)
 
     def access(self, frameId, isWrite):
         for frame in self.array:
