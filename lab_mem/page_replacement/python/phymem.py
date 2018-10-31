@@ -12,7 +12,7 @@ class PhysicalMemory:
   """How many bits to use for the Aging algorithm"""
 
   def __init__(self, algorithm):
-    assert algorithm in {"fifo", "nru", "aging", "second-chance"}
+    assert algorithm in {"fifo", "nru", "aging", "second-chance","lru"}
     self.algorithm = algorithm
     if(self.algorithm == "fifo"):
         self.policy = Fifo()
@@ -20,7 +20,8 @@ class PhysicalMemory:
         self.policy = Second_chance()
     elif(self.algorithm == "nru"):
         self.policy = Rnu()
-
+    elif(self.algorithm == "lru"):
+        self.policy = Lru()
   def put(self, frameId):
     """Allocates this frameId for some page"""
     # Notice that in the physical memory we don't care about the pageId, we only
@@ -48,6 +49,7 @@ class FrameMem:
         self.bit_R = False #Referenciado
         self.bit_M = False #Modificado
         self.count = [0] * 6
+        self.count_R = 0
 
 
 class Fifo:
@@ -122,6 +124,31 @@ class Rnu:
                 frame.bit_R = True
                 if(isWrite):
                     frame.bit_M = True
+
+class Lru:
+    def __init__(self):
+        self.queue = []
+
+    def put(self, frameId):
+        new_frame = FrameMem(frameId)
+        self.queue.insert(0, new_frame)
+
+    def evict(self):
+        lower = self.queue[0]
+        for frame in self.queue[1:]:
+            if (frame.count_R < lower.count_R):
+                lower = frame
+        self.queue.remove(lower)
+        return lower.id
+    def clock(self):
+        pass
+
+
+    def access(self, frameId, isWrite):
+        for frame in self.queue:
+            if (frame.id == frameId):
+                frame.count_R += 1
+
 class Aging:
     def __init__(self):
         self.array = []
