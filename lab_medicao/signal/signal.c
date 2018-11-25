@@ -21,7 +21,7 @@ int server(int sfd) {
     res = read (sfd, &si, sizeof(si));
 
     if (si.ssi_signo == SIGTERM){
-      printf ("Got SIGTERM\n");
+      printf ("Got SIGTERM - %d\n", si.ssi_int);
     }
     else if (si.ssi_signo == SIGINT) {
       printf ("Bye!\n");
@@ -37,7 +37,14 @@ int client(int pid, int sfd){
   while(1){
     int check = waitpid(pid,0,WNOHANG); /* WNOHANG def'd in wait.h */
     if (check < 0) break;
-    kill(pid, SIGTERM);
+    /*union sigval {           Data passed with notification
+           int     sival_int;         Integer value
+           void   *sival_ptr;         Pointer value
+       };
+    */
+    union sigval value;
+    value.sival_int = 42;
+    sigqueue(pid,SIGTERM, value); // Manda sinal igual kill, porém, com informação (inteiro ou apontador)
     sleep(1);
   }
 }
