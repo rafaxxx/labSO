@@ -8,93 +8,140 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <math.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
 #include <time.h>
 
-int const FLAG_SERVER = 1;
-int const FLAG_CLIENT = 0;
-int const INDEX_FLAG = 0;
-int const INDEX_DATA_SERVER = 1;
-int const INDEX_DATA_CLIENT = 2;
+int const M_SIZE = 536870912; //512MB
 
-int read_shm(int * shm_ptr, int index){
-  return (int) shm_ptr[index];
+struct time_count {
+  int nano_begin;
+  int sec_begin;
+  int nano_end;
+  int sec_end;
+  int diff;
+};
+
+void start_count(struct time_count * t, struct timespec * ts){
+  clock_gettime(CLOCK_MONOTONIC_COARSE, ts);
+  t->sec_begin = ts->tv_sec;
+  t->nano_begin = ts->tv_nsec;
 }
 
-void write_shm(int * shm_ptr, int index, int data){
-  shm_ptr[index] = data;
+void stop_count(struct time_count * t, struct timespec * ts){
+  clock_gettime(CLOCK_MONOTONIC_COARSE, ts);
+  t->sec_end = ts->tv_sec;
+  t->nano_end = ts->tv_nsec;
+  int diff_sec =  t->sec_end  - t->sec_begin;
+  int diff_nano = t->nano_end - t->nano_begin;
+  diff_sec *= 1000000000; //Convertendo para nano
+  t->diff = abs(diff_sec + diff_nano);
 }
 
-int server(int * shm_ptr) {
-  srand(time(NULL));   // Initialization, should only be called once.
-
-  int sleep_time = 2;
-  int previous_data = 0;
-  int sleep_count = 0;
-  while (1) {
-    int valor = read_shm(shm_ptr, INDEX_DATA_CLIENT);
-
-    if (valor != previous_data){
-      printf("[Server] - Recebi o valor %d do cliente\n",valor);
-      previous_data = valor;
-
-      if (sleep_count >= 5){
-        int sleep_time = rand() % 10;
-        write_shm(shm_ptr,INDEX_FLAG,FLAG_SERVER);
-        write_shm(shm_ptr,INDEX_DATA_SERVER, sleep_time);
-        printf("[Server] - Vou dormir por %d segundos\n",sleep_time + 1); // +1 por causa do ultimo sleep
-        sleep(sleep_time);
-        sleep_count = 0;
-        write_shm(shm_ptr,INDEX_FLAG,FLAG_CLIENT);
-      }
-      sleep_count++;
-    }
-    sleep(1);
+int count_write(char * shm_ptr){
+  struct time_count t;
+  struct timespec ts;
+  start_count(&t, &ts);
+  for (int n = 0; n < M_SIZE; n++){
+    shm_ptr[n] = 'a';
   }
-  return 0;
+  stop_count(&t, &ts);
+  return t.diff;
 }
 
-int client(int pid, int * shm_ptr){
-  int count = 0;
-  while(1){
-    int check = waitpid(pid,0,WNOHANG); /* WNOHANG def'd in wait.h */
-    if (check < 0) break;
-
-    if(read_shm(shm_ptr, INDEX_FLAG) == FLAG_CLIENT){
-      printf("[Cliente] - Enviando %d... \n", count);
-      write_shm(shm_ptr, INDEX_DATA_CLIENT, count++);
-    }else{
-      int sleep_time = read_shm(shm_ptr, INDEX_DATA_SERVER);
-      sleep(sleep_time);
+int count_read(char * shm_ptr){
+  struct time_count t;
+  struct timespec ts;
+  start_count(&t, &ts);
+  for (int n = 0; n < M_SIZE; n++){
+    if (shm_ptr[n] != 'a'){
+      printf("ERROR");
+      break;
     }
-
-    sleep(1);
   }
-  return 0;
+  stop_count(&t, &ts);
+  return t.diff;
+}
+
+int count_write_array(char array[M_SIZE]){
+  struct time_count t;
+  struct timespec ts;
+  start_count(&t, &ts);
+  for (int n = 0; n < M_SIZE; n++){
+    array[n] = 'a';
+  }
+  stop_count(&t, &ts);
+  return t.diff;
+}
+
+int count_read_array(char array[M_SIZE]){
+  struct time_count t;
+  struct timespec ts;
+  start_count(&t, &ts);
+  for (int n = 0; n < M_SIZE; n++){
+    if(array[n] = 'a'){
+      printf("ERROR");
+      break;
+    }
+  }
+  stop_count(&t, &ts);
+  return t.diff;
+}
+
+int create_shm(){
+  key_t key;
+  key = ftok((char *) "shm.c", 68);
+  return shmget(key, M_SIZE, 0777 | IPC_CREAT ); // Cria a memoria compartilhada
+}
+
+char * attach(int shmid) {
+  return (char *) shmat(shmid, NULL, 0); // Anexa a memoria compartilhada e retorna enderço de memoria
 }
 
 int main (int argc, char *argv[]) {
-  printf("My process ID : %d\n", getpid());
-  /*
-     A função ftok() usa o nome do arquivo apontado por path, que é único no sistema,
-     como uma cadeia de caracteres, e o combina com um identificador proj para gerar
-     uma chave do tipo key_t no sistema IPC.
-  */
-  key_t key = ftok((char *) "shm.c", 66);
-  int shmid = shmget(key, 4097, 0777 | IPC_CREAT ); // Cria a memoria compartilhada
-  int *shm_ptr = (int *) shmat(shmid, NULL, 0); // Anexa a memoria compartilhada e retorna enderço de memoria
+  int shmid = create_shm();
+  char * array = (char *) malloc(M_SIZE);
+  char * shm_ptr = attach(shmid);
+  FILE *shm_file_read = fopen("./output/shm-read", "w");
+  FILE *shm_file_write = fopen("./output/shm-write", "w");
+  FILE *array_file_read = fopen("./output/array-read", "w");
+  FILE *array_file_write = fopen("./output/array-write", "w");
 
-  write_shm(shm_ptr,INDEX_FLAG,0);
-  write_shm(shm_ptr,INDEX_DATA_CLIENT,0);
-  write_shm(shm_ptr,INDEX_DATA_SERVER,0);
+  if(fork() == 0){
+    for (int i = 0; i < 10000; i++){
+      int result = count_write(shm_ptr);
+      fprintf(shm_file_write, "%d\n", result);
+      fflush(shm_file_write);
+    }
 
-  int PID=fork();
-  if(PID == 0) server(shm_ptr);
-  else client(PID,shm_ptr);
 
+    for (int i = 0; i < 10000; i++){
+      int result = count_read(shm_ptr);
+      fprintf(shm_file_read, "%d\n", result);
+      fflush(shm_file_read);
+    }
+  }else{
+    for (int i = 0; i < 10000; i++){
+      int result = count_write_array(array);
+      fprintf(array_file_write, "%d\n", result);
+      fflush(array_file_write);
+    }
+
+    for (int i = 0; i < 10000; i++){
+      int result = count_read_array(array);
+      fprintf(array_file_read, "%d\n", result);
+      fflush(array_file_read);
+    }
+  }
+
+  fclose(shm_file_read);
+  fclose(shm_file_write);
+  fclose(array_file_write);
+  fclose(array_file_read);
   shmdt(shm_ptr); // Desanexar memoria
   shmctl(shmid,IPC_RMID,NULL); // Remover memoria
   return 0;
