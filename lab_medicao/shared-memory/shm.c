@@ -17,6 +17,7 @@
 #include <time.h>
 
 int const M_SIZE = 536870912; //512MB
+int const N_SAMPLE = 10000;
 
 struct time_count {
   int nano_begin;
@@ -83,10 +84,11 @@ int count_read_array(char array[M_SIZE]){
   struct timespec ts;
   start_count(&t, &ts);
   for (int n = 0; n < M_SIZE; n++){
-    if(array[n] = 'a'){
-      printf("ERROR");
-      break;
+    if(array[n] == 'a'){
+      continue;
     }
+    printf("ERROR");
+    break;
   }
   stop_count(&t, &ts);
   return t.diff;
@@ -112,26 +114,26 @@ int main (int argc, char *argv[]) {
   FILE *array_file_write = fopen("./output/array-write", "w");
 
   if(fork() == 0){
-    for (int i = 0; i < 10000; i++){
+    for (int i = 0; i < N_SAMPLE; i++){
       int result = count_write(shm_ptr);
       fprintf(shm_file_write, "%d\n", result);
       fflush(shm_file_write);
     }
 
 
-    for (int i = 0; i < 10000; i++){
+    for (int i = 0; i < N_SAMPLE; i++){
       int result = count_read(shm_ptr);
       fprintf(shm_file_read, "%d\n", result);
       fflush(shm_file_read);
     }
   }else{
-    for (int i = 0; i < 10000; i++){
+    for (int i = 0; i < N_SAMPLE; i++){
       int result = count_write_array(array);
       fprintf(array_file_write, "%d\n", result);
       fflush(array_file_write);
     }
 
-    for (int i = 0; i < 10000; i++){
+    for (int i = 0; i < N_SAMPLE; i++){
       int result = count_read_array(array);
       fprintf(array_file_read, "%d\n", result);
       fflush(array_file_read);
