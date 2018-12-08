@@ -24,7 +24,7 @@ struct time_count {
   int sec_begin;
   int nano_end;
   int sec_end;
-  int diff;
+  double diff;
 };
 
 void start_count(struct time_count * t, struct timespec * ts){
@@ -37,13 +37,13 @@ void stop_count(struct time_count * t, struct timespec * ts){
   clock_gettime(CLOCK_MONOTONIC_COARSE, ts);
   t->sec_end = ts->tv_sec;
   t->nano_end = ts->tv_nsec;
-  int diff_sec =  t->sec_end  - t->sec_begin;
-  int diff_nano = t->nano_end - t->nano_begin;
-  diff_sec *= 1000000000; //Convertendo para nano
-  t->diff = abs(diff_sec + diff_nano);
+  double diff_sec =  abs(t->sec_end  - t->sec_begin);
+  double diff_nano = abs(t->nano_end - t->nano_begin);
+  diff_nano /= 1000000000; //Deixando em fracao
+  t->diff = diff_sec + diff_nano;
 }
 
-int count_write(char * shm_ptr){
+double count_write(char * shm_ptr){
   struct time_count t;
   struct timespec ts;
   start_count(&t, &ts);
@@ -54,7 +54,7 @@ int count_write(char * shm_ptr){
   return t.diff;
 }
 
-int count_read(char * shm_ptr){
+double count_read(char * shm_ptr){
   struct time_count t;
   struct timespec ts;
   start_count(&t, &ts);
@@ -68,7 +68,7 @@ int count_read(char * shm_ptr){
   return t.diff;
 }
 
-int count_write_array(char array[M_SIZE]){
+double count_write_array(char array[M_SIZE]){
   struct time_count t;
   struct timespec ts;
   start_count(&t, &ts);
@@ -79,7 +79,7 @@ int count_write_array(char array[M_SIZE]){
   return t.diff;
 }
 
-int count_read_array(char array[M_SIZE]){
+double count_read_array(char array[M_SIZE]){
   struct time_count t;
   struct timespec ts;
   start_count(&t, &ts);
@@ -115,27 +115,27 @@ int main (int argc, char *argv[]) {
 
   if(fork() == 0){
     for (int i = 0; i < N_SAMPLE; i++){
-      int result = count_write(shm_ptr);
-      fprintf(shm_file_write, "%d\n", result);
+      double result = count_write(shm_ptr);
+      fprintf(shm_file_write, "%.9f\n", result);
       fflush(shm_file_write);
     }
 
 
     for (int i = 0; i < N_SAMPLE; i++){
-      int result = count_read(shm_ptr);
-      fprintf(shm_file_read, "%d\n", result);
+      double result = count_read(shm_ptr);
+      fprintf(shm_file_read, "%.9f\n", result);
       fflush(shm_file_read);
     }
   }else{
     for (int i = 0; i < N_SAMPLE; i++){
-      int result = count_write_array(array);
-      fprintf(array_file_write, "%d\n", result);
+      double result = count_write_array(array);
+      fprintf(array_file_write, "%.9f\n", result);
       fflush(array_file_write);
     }
 
     for (int i = 0; i < N_SAMPLE; i++){
-      int result = count_read_array(array);
-      fprintf(array_file_read, "%d\n", result);
+      double result = count_read_array(array);
+      fprintf(array_file_read, "%.9f\n", result);
       fflush(array_file_read);
     }
   }
