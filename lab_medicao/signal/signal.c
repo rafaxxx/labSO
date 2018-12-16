@@ -12,11 +12,8 @@
  #include <time.h>
  #include <string.h>
 
- //int const M_SIZE = 1048576; //1MB (~1s)
- //int const M_SIZE = 134217728; //128MB (~2min)
- //int const M_SIZE = 268435456; //256MB (~4min)
- //int const M_SIZE = 536870912; //512MB (~8min)
- int const N_SAMPLE = 10000;
+ int N_SAMPLE;
+ int M_SIZE;
 
 void get_my_time(struct timespec * ts){
   clock_gettime(CLOCK_MONOTONIC_COARSE, ts);
@@ -42,7 +39,7 @@ int merge_time(struct timespec * ts){
   return atoi(xx);
 }
 
-int server(int sfd) {
+int server(int sfd, FILE *signal_file) {
   static int begin;
   static int end;
   static int count = 0;
@@ -60,7 +57,8 @@ int server(int sfd) {
     }
     if (si.ssi_signo == SIGUSR2){
       end = si.ssi_int;
-      printf("diff=%f\n", (end - begin)/1000000.);
+      fprintf(signal_file, "%f\n", (end - begin)/1000000.);
+      fflush(signal_file);
     }
     if (si.ssi_signo == SIGTERM){
       count++;
@@ -94,7 +92,26 @@ int client(int pid, int sfd){
 int main (int argc, char *argv[]) {
   int sfd;
   sigset_t mask;
-  printf("My process ID : %d\n", getpid());
+
+  FILE *signal_file = fopen("signal/output/signal", "w");
+
+  N_SAMPLE = atoi(argv[2]);
+  switch (atoi(argv[1])) {
+    case 1:
+      M_SIZE = 1048576;
+      break;
+    case 128:
+      M_SIZE = 134217728;
+      break;
+    case 256:
+      M_SIZE = 268435456;
+      break;
+    case 512:
+      M_SIZE = 536870912;
+      break;
+    default:
+      return 0;
+  }
 
   /* We will handle SIGTERM and SIGINT. */
   sigemptyset (&mask);
@@ -111,11 +128,12 @@ int main (int argc, char *argv[]) {
   sfd = signalfd (-1, &mask, 0);
 
 	int PID=fork();
-	if(PID == 0) server(sfd);
+	if(PID == 0) server(sfd, signal_file);
 	else {
     for (int i = 0; i < N_SAMPLE; i++) {
       client(PID,sfd);
     }
   }
+  fclose(signal_file);
   return 0;
 }

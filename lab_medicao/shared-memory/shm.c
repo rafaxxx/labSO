@@ -16,8 +16,8 @@
 #include <sys/wait.h>
 #include <time.h>
 
-int const M_SIZE = 536870912; //512MB
-int const N_SAMPLE = 10000;
+int M_SIZE;
+int N_SAMPLE;
 
 struct time_count {
   int nano_begin;
@@ -96,7 +96,7 @@ double count_read_array(char array[M_SIZE]){
 
 int create_shm(){
   key_t key;
-  key = ftok((char *) "shm.c", 68);
+  key = ftok((char *) "shared-memory/shm.c", 66);
   return shmget(key, M_SIZE, 0777 | IPC_CREAT ); // Cria a memoria compartilhada
 }
 
@@ -105,13 +105,32 @@ char * attach(int shmid) {
 }
 
 int main (int argc, char *argv[]) {
+  N_SAMPLE = atoi(argv[2]);
+  switch (atoi(argv[1])) {
+    case 1:
+    M_SIZE = 1048576;
+    break;
+    case 128:
+    M_SIZE = 134217728;
+    break;
+    case 256:
+    M_SIZE = 268435456;
+    break;
+    case 512:
+    M_SIZE = 536870912;
+    break;
+    default:
+    return 0;
+  }
   int shmid = create_shm();
   char * array = (char *) malloc(M_SIZE);
   char * shm_ptr = attach(shmid);
-  FILE *shm_file_read = fopen("./output/shm-read", "w");
-  FILE *shm_file_write = fopen("./output/shm-write", "w");
-  FILE *array_file_read = fopen("./output/array-read", "w");
-  FILE *array_file_write = fopen("./output/array-write", "w");
+  FILE *shm_file_read = fopen("./shared-memory/output/shm-read", "w");
+  FILE *shm_file_write = fopen("./shared-memory/output/shm-write", "w");
+  FILE *array_file_read = fopen("./shared-memory/output/array-read", "w");
+  FILE *array_file_write = fopen("./shared-memory/output/array-write", "w");
+
+
 
   if(fork() == 0){
     for (int i = 0; i < N_SAMPLE; i++){
