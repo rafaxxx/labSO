@@ -20,7 +20,7 @@ Foi gerados 1000 amostras desse processo para quatro tamanho de memória distint
 
 As saidas dos programas foram colocadas nessa [planilha](https://docs.google.com/spreadsheets/d/14-sDDpeBVOQDcqk5ZLbbrB74eAsFX99EiQgAd1GUcg4/edit?usp=sharing) para que fosse gerado os gráficos e possamos fazer as análises.
 
-Como já era esperado, a utilização de sinais como forma de comunicação entre processo para leitura e escrita de dados é bastante custosa, ao plotar os gráficos com a média de tempo obtido pelas 1000 amostras de sinais fica praticamente impossivel de verificar os dados de memororia compartilhada e array e tão descrepante é a diferença.
+Como já era esperado, a utilização de sinais como forma de comunicação entre processo para leitura e escrita de dados é bastante custosa, ao plotar os gráficos com a média de tempo obtido pelas 1000 amostras de sinais fica praticamente impossivel de verificar os dados de memororia compartilhada e array de tão descrepante que é a diferença.
 
 Para se ter uma ideia, nem o tempo de leitura e escrita de uma memoria compartilhada de 512MB é superior ao envio de 1MB de sinais de um processo para outro, desta forma, podemos afirmar que o uso de sinais deve ser mais focado em flags, a vantagem de não compartilhar região da memória, logo região crítica, é insignificante ao comparar o seu custo de tempo.
 
